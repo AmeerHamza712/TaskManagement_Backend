@@ -64,8 +64,8 @@ app.use(
     cookie: {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Set to true if using HTTPS in production
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // 'none' needed if frontend/backend are on different domains
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     },
   }),
 );
@@ -75,6 +75,7 @@ app.use((req, res, next) => {
   console.log("=================================");
   console.log("PATH:", req.path);
   console.log("METHOD:", req.method);
+  console.log("Session ID:", req.sessionID);
   console.log("=================================");
   next();
 });
@@ -121,11 +122,12 @@ app.use(teamRouter);
 app.use(notificationRouter);
 app.use(searchRouter);
 app.use("/api/invitations", invitationRoutes);
+
 app.use((req, res) => {
   res.sendFile(path.resolve(_dirname, "toDoApp", "dist", "index.html"));
 });
 
-// 10. Database connection helper for serverless environment
+// 10. Database Connection & Server Startup (Dual Mode)
 let isConnected = false;
 async function connectDB() {
   if (isConnected) return;
@@ -139,11 +141,21 @@ async function connectDB() {
   }
 }
 
-// Connect before handling requests
+// Serverless middleware for Vercel requests
 app.use(async (req, res, next) => {
   await connectDB();
   next();
 });
 
-// 11. EXPORT FOR VERCEL (Crucial change: Do NOT use app.listen here)
+// Local Development Server (Ignored on Vercel)
+const PORT = process.env.PORT || 3000;
+if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+  connectDB().then(() => {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server is running locally at http://localhost:${PORT}`);
+    });
+  });
+}
+
+// 11. CRITICAL FOR VERCEL
 module.exports = app;
