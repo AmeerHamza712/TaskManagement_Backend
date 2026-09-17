@@ -14,10 +14,10 @@ let path = require("path");
 let app = express();
 let rootDir = require("./utils/pathUtil");
 require("dotenv").config();
+
 const MONGO_URL = process.env.MONGODB_URL;
 const _dirname = path.resolve();
 
-const Port = process.env.Port || 3000;
 // 1. CORS Configuration
 const allowedOrigins = ["http://localhost:5173", "http://192.168.100.9:5173"];
 app.use(
@@ -64,8 +64,8 @@ app.use(
     cookie: {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production", // Set to true if using HTTPS in production
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // 'none' needed if frontend/backend are on different domains
     },
   }),
 );
@@ -75,10 +75,6 @@ app.use((req, res, next) => {
   console.log("=================================");
   console.log("PATH:", req.path);
   console.log("METHOD:", req.method);
-  console.log("Session ID:", req.sessionID);
-  console.log("Is Logged In:", req.session?.isLoggedIn);
-  console.log("User:", req.session?.user);
-  console.log("Cookies:", req.headers.cookie);
   console.log("=================================");
   next();
 });
@@ -128,15 +124,26 @@ app.use("/api/invitations", invitationRoutes);
 app.use((req, res) => {
   res.sendFile(path.resolve(_dirname, "toDoApp", "dist", "index.html"));
 });
-//10.Server Initialization
-mongoose
-  .connect(MONGO_URL)
-  .then(() => {
+
+// 10. Database connection helper for serverless environment
+let isConnected = false;
+async function connectDB() {
+  if (isConnected) return;
+  try {
+    await mongoose.connect(MONGO_URL);
+    isConnected = true;
     console.log("Mongodb is Connected");
-    app.listen(Port, "0.0.0.0", () => {
-      console.log(`Server is running at http://192.168.100.9:${Port}`);
-    });
-  })
-  .catch((err) => {
+  } catch (err) {
     console.log("Error while connecting Mongodb", err);
-  });
+    throw err;
+  }
+}
+
+// Connect before handling requests
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
+
+// 11. EXPORT FOR VERCEL (Crucial change: Do NOT use app.listen here)
+module.exports = app;
