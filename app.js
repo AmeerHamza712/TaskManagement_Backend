@@ -16,7 +16,6 @@ let rootDir = require("./utils/pathUtil");
 require("dotenv").config();
 
 const MONGO_URL = process.env.MONGODB_URL;
-const _dirname = path.resolve();
 
 // 1. CORS Configuration
 const allowedOrigins = ["http://localhost:5173", "http://192.168.100.9:5173"];
@@ -41,8 +40,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(rootDir, "public")));
 app.use("/uploads", express.static(path.join(rootDir, "uploads")));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-app.use(express.static(path.join(_dirname, "/toDoApp/dist")));
-
 // 4. Session Store Setup
 const store = new MongodbStore({
   uri: MONGO_URL,
@@ -122,10 +119,6 @@ app.use(teamRouter);
 app.use(notificationRouter);
 app.use(searchRouter);
 app.use("/api/invitations", invitationRoutes);
-
-app.use((req, res) => {
-  res.sendFile(path.resolve(_dirname, "toDoApp", "dist", "index.html"));
-});
 
 // 10. Database Connection & Server Startup (Dual Mode)
 let isConnected = false;
