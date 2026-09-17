@@ -1,90 +1,8 @@
 const Task = require("../models/task.model");
 const Notification = require("../models/Notification").default;
 const User = require("../models/user.model");
-// exports.postAddTask = async (req, res) => {
-//   let { title, subTask, userName, adminName, teamName, dueDate } = req.body;
-//   const existingTask = await Task.findOne({
-//     title,
-//     assignedTo: userName,
-//     team: teamName,
-//   });
+const mongoose = require("mongoose");
 
-//   if (existingTask) {
-//     return res.status(400).send("Task already exists");
-//   }
-
-//   let newTask = new Task({
-//     title,
-//     subTask,
-//     assignedTo: userName,
-//     assignedBy: adminName,
-//     team: teamName,
-//     dueDate,
-//   });
-//   await newTask
-//     .save()
-//     .then(() => {
-//       console.log("Task added");
-//       res.send({ message: "Task added" });
-//     })
-//     .catch((err) => {
-//       res.send({ message: "Error while adding Task", err });
-//     });
-// };
-
-// exports.postAddTask = async (req, res) => {
-//   try {
-//     let { title, subTask, userName, adminName, teamName, dueDate } = req.body;
-
-//     const existingTask = await Task.findOne({
-//       title,
-//       assignedTo: userName,
-//       team: teamName,
-//     });
-
-//     if (existingTask) {
-//       return res.status(400).send("Task already exists");
-//     }
-
-//     let newTask = new Task({
-//       title,
-//       subTask,
-//       assignedTo: userName,
-//       assignedBy: adminName,
-//       team: teamName,
-//       dueDate,
-//     });
-
-//     await newTask.save();
-//     console.log("Task added");
-
-//     // -------------------------------------------------------------
-//     // CREATE NOTIFICATION FOR ASSIGNED USER
-//     // -------------------------------------------------------------
-//     // Find assigned user's ID using their username/email
-//     const recipientUser = await User.findOne({
-//       $or: [{ name: userName }, { email: userName }],
-//     });
-
-//     if (recipientUser) {
-//       await Notification.create({
-//         recipient: recipientUser._id,
-//         sender: req.session?.user || null,
-//         type: "TASK_ASSIGNED",
-//         task: newTask._id,
-//         title: "New Task Assigned",
-//         message: `You have been assigned a new task: "${title}" by ${adminName}.`,
-//       });
-//     }
-
-//     return res.status(201).json({ message: "Task added" });
-//   } catch (err) {
-//     console.error("Error while adding Task:", err);
-//     return res
-//       .status(500)
-//       .json({ message: "Error while adding Task", err: err.message });
-//   }
-// };
 exports.getProgress = async (req, res) => {
   try {
     const { taskId } = req.body;
@@ -110,7 +28,7 @@ exports.getProgress = async (req, res) => {
     if (progressPercentage === 100) {
       userTask.status = "completed";
     }
-    userTask.statuse = "pending";
+    userTask.status = userTask.status || "pending";
     // 3. Update document in MongoDB and save
     userTask.progress = progressPercentage;
     await userTask.save();
@@ -129,49 +47,6 @@ exports.getProgress = async (req, res) => {
   }
 };
 
-// exports.updateTaskStatus = async (req, res) => {
-//   try {
-//     const { userId, index } = req.params;
-
-//     // 1. Find the task document
-//     const userTask = await Task.findOne({ assignedTo: userId });
-
-//     if (!userTask) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Task not found" });
-//     }
-
-//     // 2. Safely check if subTask exists at that index
-//     if (!userTask.subTask || !userTask.subTask[index]) {
-//       return res
-//         .status(400)
-//         .json({ success: false, message: "Invalid subTask index" });
-//     }
-
-//     // 3. Toggle the boolean value (flip true to false, or false to true)
-//     userTask.subTask[index].completed = !userTask.subTask[index].completed;
-//     //1.1 Setting Progres
-//     let completed = userTask.subTask.filter((task) => task.completed === true);
-//     console.log("Completed Task:", completed.length);
-//     userTask.progress = (completed.length / userTask.subTask.length) * 100;
-//     console.log("Total Task:", userTask.subTask.length);
-//     console.log("Progress:", userTask.progress);
-//     //3.1 Change Status
-//     userTask.status = userTask.progress === 100 ? "completed" : "pending";
-//     // 4. Save to database using await
-//     const updatedTask = await userTask.save();
-
-//     // 5. Send updated task back to the client
-//     res.status(200).json({
-//       success: true,
-//       message: "Task updated successfully",
-//       task: updatedTask,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
 exports.getTaskList = async (req, res) => {
   try {
     let { id } = req.params;
@@ -185,7 +60,6 @@ exports.getTaskList = async (req, res) => {
     if (!userTasks || userTasks.length === 0) {
       return res
         .status(404)
-
         .json({ message: "No tasks found for this user", userTasks: [] });
     }
 
@@ -199,19 +73,28 @@ exports.getTaskList = async (req, res) => {
   }
 };
 
-const mongoose = require("mongoose");
-
 exports.postAddTask = async (req, res) => {
   try {
-    let { title, subTask, userName, adminName, teamName, dueDate } = req.body;
+    const {
+      title,
+      subTask,
+      assignedTo,
+      assignedBy,
+      userName,
+      adminName,
+      team,
+      teamName,
+      dueDate,
+    } = req.body;
 
-    // Resolve assignedBy ID from session or payload
-    const assignedByUserId = req.session?.user?._id || adminName;
+    const resolvedAssignedTo = assignedTo || userName;
+    const resolvedAssignedBy =
+      assignedBy || req.session?.user?._id || adminName;
+    const resolvedTeam = team || teamName;
 
-    // Validate assignedBy presence and format
     if (
-      !assignedByUserId ||
-      !mongoose.Types.ObjectId.isValid(assignedByUserId)
+      !resolvedAssignedBy ||
+      !mongoose.Types.ObjectId.isValid(resolvedAssignedBy)
     ) {
       return res.status(400).json({
         message:
@@ -219,7 +102,10 @@ exports.postAddTask = async (req, res) => {
       });
     }
 
-    if (!userName || !mongoose.Types.ObjectId.isValid(userName)) {
+    if (
+      !resolvedAssignedTo ||
+      !mongoose.Types.ObjectId.isValid(resolvedAssignedTo)
+    ) {
       return res.status(400).json({
         message: "Task creation failed: Invalid or missing assigned user ID.",
       });
@@ -228,8 +114,8 @@ exports.postAddTask = async (req, res) => {
     // Check duplicate
     const existingTask = await Task.findOne({
       title,
-      assignedTo: userName,
-      team: teamName,
+      assignedTo: resolvedAssignedTo,
+      team: resolvedTeam,
     });
 
     if (existingTask) {
@@ -238,13 +124,24 @@ exports.postAddTask = async (req, res) => {
         .json({ message: "Task already exists for this user and team." });
     }
 
+    // Format subTask array so every item has a title/completed shape
+    const formattedSubtasks = Array.isArray(subTask)
+      ? subTask
+          .filter((st) => Boolean(st))
+          .map((st) => ({
+            title: typeof st === "string" ? st : st.title || st.text || "",
+            completed:
+              typeof st === "object" && st.completed ? st.completed : false,
+          }))
+      : [];
+
     // Create Task
     const newTask = new Task({
       title,
-      subTask,
-      assignedTo: userName,
-      assignedBy: assignedByUserId, // Guaranteed non-undefined valid ObjectId
-      team: teamName,
+      subTask: formattedSubtasks,
+      assignedTo: resolvedAssignedTo,
+      assignedBy: resolvedAssignedBy,
+      team: resolvedTeam,
       dueDate,
     });
 
@@ -252,8 +149,8 @@ exports.postAddTask = async (req, res) => {
 
     // Create Notification
     await Notification.create({
-      recipient: userName,
-      sender: assignedByUserId,
+      recipient: resolvedAssignedTo,
+      sender: resolvedAssignedBy,
       type: "TASK_ASSIGNED",
       task: newTask._id,
       title: "New Task Assigned",
@@ -360,48 +257,13 @@ exports.updateTaskStatus = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
-// Inside task.controller.js
 
-exports.postAddTask = async (req, res) => {
-  try {
-    const { title, subTask, assignedTo, assignedBy, team, dueDate } = req.body;
-
-    // Format subTask array to ensure every item has a title property
-    const formattedSubtasks = Array.isArray(subTask)
-      ? subTask
-          .filter((st) => Boolean(st)) // Remove empty entries
-          .map((st) => ({
-            title: typeof st === "string" ? st : st.title || st.text || "",
-            completed:
-              typeof st === "object" && st.completed ? st.completed : false,
-          }))
-      : [];
-
-    const newTask = new Task({
-      title,
-      subTask: formattedSubtasks,
-      assignedTo,
-      assignedBy,
-      team,
-      dueDate,
-    });
-
-    const savedTask = await newTask.save();
-
-    return res.status(201).json({
-      success: true,
-      message: "Task created successfully",
-      task: savedTask,
-    });
-  } catch (error) {
-    console.error("Error creating task:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Failed to create task",
-    });
-  }
-};
-
+// -----------------------------------------------------------------------
+// DELETE MAIN TASK
+// Fix: Task documents store ownership on `assignedTo`, not `user`.
+// The old query `{ _id: taskId, user: userId }` could never match a real
+// document, so every delete request came back "Task not found or unauthorized".
+// -----------------------------------------------------------------------
 exports.deleteTask = async (req, res) => {
   const { userId, taskId } = req.params;
 
@@ -416,10 +278,9 @@ exports.deleteTask = async (req, res) => {
   }
 
   try {
-    // Check if your schema uses 'user' or 'userId'
     const deletedTask = await Task.findOneAndDelete({
       _id: taskId,
-      user: userId, // Change to 'userId: userId' if your schema field is named 'userId'
+      assignedTo: userId, // was: user: userId (field didn't exist on schema)
     });
 
     if (!deletedTask) {
@@ -428,7 +289,6 @@ exports.deleteTask = async (req, res) => {
         .json({ success: false, message: "Task not found or unauthorized" });
     }
 
-    // Explicitly return HTTP 200 OK
     return res.status(200).json({
       success: true,
       message: "Task deleted successfully",
@@ -442,7 +302,10 @@ exports.deleteTask = async (req, res) => {
   }
 };
 
-// Delete Subtask
+// -----------------------------------------------------------------------
+// DELETE SUBTASK
+// Same fix: match on `assignedTo` instead of the nonexistent `user` field.
+// -----------------------------------------------------------------------
 exports.deleteSubtask = async (req, res) => {
   const { userId, taskId, subtaskIndex } = req.params;
   const index = parseInt(subtaskIndex, 10);
@@ -463,7 +326,7 @@ exports.deleteSubtask = async (req, res) => {
   }
 
   try {
-    const task = await Task.findOne({ _id: taskId, user: userId });
+    const task = await Task.findOne({ _id: taskId, assignedTo: userId }); // was: user: userId
 
     if (!task) {
       return res

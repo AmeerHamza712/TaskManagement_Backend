@@ -13,14 +13,13 @@ let cors = require("cors");
 let path = require("path");
 let app = express();
 let rootDir = require("./utils/pathUtil");
+require("dotenv").config();
+const MONGO_URL = process.env.MONGODB_URL;
+const _dirname = path.resolve();
 
-const MONGO_URL =
-  "mongodb+srv://mern:mern@mernjourney.hiqnndy.mongodb.net/taskManager?retryWrites=true&w=majority&appName=MernJourney";
-let Port = 3001;
-
+const Port = process.env.Port || 3000;
 // 1. CORS Configuration
 const allowedOrigins = ["http://localhost:5173", "http://192.168.100.9:5173"];
-
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -42,6 +41,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(rootDir, "public")));
 app.use("/uploads", express.static(path.join(rootDir, "uploads")));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use(express.static(path.join(_dirname, "/toDoApp/dist")));
 
 // 4. Session Store Setup
 const store = new MongodbStore({
@@ -125,8 +125,10 @@ app.use(teamRouter);
 app.use(notificationRouter);
 app.use(searchRouter);
 app.use("/api/invitations", invitationRoutes);
-
-// 10. Server Initialization
+app.use((req, res) => {
+  res.sendFile(path.resolve(_dirname, "toDoApp", "dist", "index.html"));
+});
+//10.Server Initialization
 mongoose
   .connect(MONGO_URL)
   .then(() => {
