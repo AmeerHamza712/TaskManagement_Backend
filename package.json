@@ -1,19 +1,23 @@
 {
   "name": "portfoli_project",
   "version": "1.0.0",
-  "main": "app.js",
+  "main": "Backend/app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon app.js",
-    "admin": "nodemon app.js"
+    "dev": "nodemon Backend/app.js",
+    "build": "npm install && npm install --prefix toDoApp && npm run build --prefix toDoApp",
+    "start": "node app.js",
+    "admin": "node seedAdmin.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "body-parser": "^2.3.0",
     "connect-mongodb-session": "^5.0.0",
     "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "mongoose": "^9.7.4",

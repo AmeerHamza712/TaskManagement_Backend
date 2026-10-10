@@ -14,9 +14,10 @@ let path = require("path");
 let app = express();
 let rootDir = require("./utils/pathUtil");
 require("dotenv").config();
+const MONGO_URL = process.env.MONGODB_URI;
+const _dirname = path.resolve();
 
-const MONGO_URL = process.env.MONGODB_URL;
-
+const Port = process.env.PORT || 3000;
 // 1. CORS Configuration
 const allowedOrigins = ["http://localhost:5173", "http://192.168.100.9:5173"];
 app.use(
@@ -40,6 +41,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(rootDir, "public")));
 app.use("/uploads", express.static(path.join(rootDir, "uploads")));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use(express.static(path.join(_dirname, "/toDoApp/dist")));
+
 // 4. Session Store Setup
 const store = new MongodbStore({
   uri: MONGO_URL,
@@ -61,8 +64,8 @@ app.use(
     cookie: {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: false,
+      sameSite: "lax",
     },
   }),
 );
@@ -73,6 +76,9 @@ app.use((req, res, next) => {
   console.log("PATH:", req.path);
   console.log("METHOD:", req.method);
   console.log("Session ID:", req.sessionID);
+  console.log("Is Logged In:", req.session?.isLoggedIn);
+  console.log("User:", req.session?.user);
+  console.log("Cookies:", req.headers.cookie);
   console.log("=================================");
   next();
 });
@@ -119,36 +125,18 @@ app.use(teamRouter);
 app.use(notificationRouter);
 app.use(searchRouter);
 app.use("/api/invitations", invitationRoutes);
-
-// 10. Database Connection & Server Startup (Dual Mode)
-let isConnected = false;
-async function connectDB() {
-  if (isConnected) return;
-  try {
-    await mongoose.connect(MONGO_URL);
-    isConnected = true;
-    console.log("Mongodb is Connected");
-  } catch (err) {
-    console.log("Error while connecting Mongodb", err);
-    throw err;
-  }
-}
-
-// Serverless middleware for Vercel requests
-app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+app.use((req, res) => {
+  res.sendFile(path.resolve(_dirname, "toDoApp", "dist", "index.html"));
 });
-
-// Local Development Server (Ignored on Vercel)
-const PORT = process.env.PORT || 3000;
-if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
-  connectDB().then(() => {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server is running locally at http://localhost:${PORT}`);
+//10.Server Initialization
+mongoose
+  .connect(MONGO_URL)
+  .then(() => {
+    console.log("Mongodb is Connected");
+    app.listen(Port, "0.0.0.0", () => {
+      console.log(`Server is running at http://192.168.100.9:${Port}`);
     });
+  })
+  .catch((err) => {
+    console.log("Error while connecting Mongodb", err);
   });
-}
-
-// 11. CRITICAL FOR VERCEL
-module.exports = app;
