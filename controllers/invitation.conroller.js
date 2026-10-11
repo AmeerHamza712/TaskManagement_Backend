@@ -98,6 +98,7 @@ exports.rejectInvitation = async (req, res) => {
 // ==========================================
 exports.postSetEmailInvitation = async (req, res) => {
   try {
+    console.log("Invitaion Creation has been called..");
     const { teamId } = req.params;
     const { inviteeEmail, role } = req.body;
     const currentUserId = req.session?.user?._id || req.session?.user;

@@ -8,6 +8,7 @@ const invitationSchema = new Schema(
       ref: "Team",
       required: true,
     },
+
     inviteeEmail: {
       type: String,
       required: true,

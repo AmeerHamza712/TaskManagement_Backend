@@ -4,10 +4,9 @@
   "main": "Backend/app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon Backend/app.js",
-    "build": "npm install && npm install --prefix toDoApp && npm run build --prefix toDoApp",
     "start": "node app.js",
-    "admin": "node seedAdmin.js"
+    "dev": "nodemon app.js",
+    "admin": "nodemon app.js"
   },
   "keywords": [],
   "author": "",
